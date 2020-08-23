@@ -53,6 +53,150 @@ class FileSys:
     # 常数：PSFSb
     PSFSB = {
         "/": {
+            "bin/": {},
+            "psu/": {}, # TODO 添加多用户 短期内（9月前）不可能完成
+            "tmp/": {}
+        },
+        "R/": {
+            "back/": {},
             "bin/": {}
         }
     }
+    absd = "/"
+
+    # 函数：目录操作
+    def init_psfsb(self, **args):
+        """初始化PSFSb并写入文件，args内先是bin/，后是psu/"""
+
+        print("Getting temp...", end='')
+        _ipsfsb = self.PSFSB    # 写入模板
+        print("\tDone.")
+
+        # 是否有args
+        print("Other temp?", end='')
+        if args:
+            print("\tYes.\nAdding temp...", end='')
+            _ipsfsb["/"]["bin/"] = args["bin/"]
+            _ipsfsb["/"]["psu/"] = args["psu/"]
+            print("\tDone.")
+        else:
+            print("\tNo.")
+        
+        # 写入文件
+        print("Writing to file(disk.psfsb)...", end='')
+        with open("disk.psfsb", "w") as d:
+            from json import dump
+            dump(_ipsfsb, d)
+        print("\tDone.")
+    
+    def get_disk(self, file="disk.psfsb") -> bool:
+        """获取DISK硬盘，可以自定义文件名"""
+
+        # 是否有硬盘文件
+        try:
+            with open(file) as f:
+                from json import load
+                self.DISK = load(f)
+                return True
+        except FileNotFoundError:
+            return False
+    
+    def sync_disk(self, file="disk.psfsb", backup=False):
+        """[备份R/back/]并同步磁盘"""
+
+        if backup:
+            self.DISK["R"]["back"] = self.DISK["/"]
+        else:
+            ...
+
+        with open(file, "w") as f:
+            from json import dump
+            dump(self.DISK, f)
+    
+    def change_abs(self, nabs: str, spec: bool=False) -> bool:
+        """更改当前的绝对路径"""
+
+        # 是否有那个路径
+        try:
+            n = nabs.split('|')
+            _target = ''
+            for i in range(len(n)):
+                _target += '["' + n[i] + '"]'
+            exec("_t = self.DISK" + _target)
+            self.absd = nabs
+            return _target
+        except KeyError:
+            if spec:
+                return _target
+            else:
+                return False
+
+    def change_dir(self, ndir: str) -> bool:
+        """更改当前的相对路径"""
+
+        # 检测特殊路径
+        if "../" in ndir:
+            self.absd = self.absd.split('|')[:-2]
+            if self.absd:
+                return True
+            else:
+                self.absd = "/"
+                return False
+        else:
+            # 是否有那个路径
+            try:
+                self.change_abs(self.absd + ndir)
+                return True
+            except KeyError:
+                return False
+    
+    def remove_abs(self, rabs: str, spec: bool=False) -> bool:
+        """删除指定的绝对路径"""
+
+        # 做好原先的路径备份
+        _origin = self.absd
+        # 是否有那个路径
+        try:
+            exec("del self.DISK" + self.change_abs(rabs, spec))
+            self.change_abs(_origin)
+            return True
+        except KeyError:
+            return False
+    
+    def remove_dir(self, rdir: str) -> bool:
+        """删除指定的相对路径"""
+
+        # 不允许出现特殊../
+        if "../" in rdir:
+            return False
+        else:
+            try:
+                self.remove_abs(self.absd + rdir)
+                return True
+            except KeyError:
+                return False
+    
+    def make_dir(self, mdir: str):
+        """新建目录（不允许绝对路径）"""
+
+        # 做好原先的路径备份
+        _origin = self.absd
+        # 直接创建
+        exec("self.DISK" + self.change_abs(self.absd+mdir, True) + "= {}")
+    
+    # 函数：文件操作
+    def make_file(self, mf: str):
+        """新建文件（不允许绝对路径）"""
+
+        _target = list(self.change_abs(self.absd + '|' + mf + '/', True))
+        del _target[-3]
+        _target = ''.join(_target)
+        exec("self.DISK" + _target + '= "FILEMARK::KRAMELIF"')
+    
+    def ramove_file(self, rf: str):
+        """删除文件（不允许绝对路径）"""
+
+        # 实际上就是remove_abs，只不过这样可以更加人性化
+        self.remove_abs(self.absd + '|' + rf, True)
+
+# 时间操作正在开发中……
