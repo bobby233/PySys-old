@@ -38,7 +38,7 @@ PySys的GitHub仓库(https://github.com/bobby233/pysys)或我的个人博客
 class FileSys:
     """关于文件和目录的所有操作
 
-    这里有例如ls, cd, touch, mkdir这样的命令支持，分为两个模块进行函数开发和维护：
+    这里有例如cd, touch, mkdir这样的命令支持，分为两个模块进行函数开发和维护：
     1. 目录操作
     2. 文件操作
 
@@ -199,4 +199,157 @@ class FileSys:
         # 实际上就是remove_abs，只不过这样可以更加人性化
         self.remove_abs(self.absd + '|' + rf, True)
 
-# 时间操作正在开发中……
+class Time:
+    """关于时间的操作
+
+    这里不但有直接获取时间的基本操作，而且有时区换算、日期计算和计时等高级操作。
+
+    时间的操作涉及到单位，这里全部使用SI的国际标准单位——秒(s)，这里的所有操作
+    基本上没有任何技术的难度，所以介绍更少。
+
+    """
+
+    def get_time(self, tformat="PSDTF"):
+        """获取本地时间，可以更换格式，这里推荐使用PSDTF(PySys Default Time Format)
+        来获取时间，如果你不想要这种格式，可以更换POSIX、CTIME和WIN（Windows
+        默认格式）的格式。"""
+
+        # 是否支持格式
+        if tformat in ("PSDTF", "POSIX", "CTIME", "WIN"):
+            from time import time, ctime
+            from datetime import date
+            # 各种格式
+            if tformat == "PSDTF":
+                # time, yyyy-mm-dd day, POSIX
+                _ct = ctime()
+                return [_ct.split()[3],
+                        date.today().isoformat(), _ct.split()[0],
+                        time()]
+            elif tformat == "POSIX":
+                return time()
+            elif tformat == "CTIME":
+                return ctime()
+            else:
+                _dt = date.today()
+                return [ctime().split()[3],
+                        '/'.join(_dt.year, _dt.month, _dt.day)]
+        else:
+            return False
+    
+    def get_cal(self, year: int, month: int) -> str:
+        """获取日历"""
+
+        from calendar import month
+        return month(year, month)
+    
+    def set_tz(self, tz: int=8):
+        """设置时区，保存在db.json"""
+
+        # 是否有db.json
+        try:
+            _db = open("db/db.json")
+        except FileNotFoundError:
+            db = {"timezone": tz}
+            with open("db/db.json", "w") as d:
+                from json import dump
+                dump(db, d)
+        else:
+            from json import load, dump
+            db = load(_db)
+            db["timezone"] = tz
+            dump(db, _db)
+            _db.close()
+    
+    def get_tz(self) -> int:
+        """获取时区，返回整数timedelta"""
+
+        # 是否有db.json
+        try:
+            _db = open("db/db.json")
+        except FileNotFoundError:
+            return 8
+        else:
+            from json import load
+            return load(_db)["timezone"]
+            _db.close()
+    
+    def get_utc(self) -> str:
+        """获取UTC时间，返回ISO格式"""
+
+        from datetime import datetime
+        return datetime.utcnow().isoformat()
+    
+    def get_day(self, isodate: str) -> int:
+        """获取指定日期的星期（ISO格式），需要ISO格式的日期，即PSDTF格式的日期"""
+
+        from datetime import datetime
+        return datetime.fromisoformat(isodate).isoweekday()
+    
+    def get_diff(self, isodateone: str, isodatetwo: str) -> int:
+        """获取两个日期之间的间隔天，需要ISO/PSDTF格式的日期"""
+
+        from datetime import datetime
+        return (datetime.fromisoformat(isodateone) - \
+                datetime.fromisoformat(isodatetwo)).days
+
+class Network:
+    """所有关于网络的操作，没有文档，代码都是以前写的，和其他代码风格不同
+    主要是没有经过测试，不保证稳定性"""
+
+    network = False
+
+    import urllib.request
+
+    def check_network(self, url="https://www.baidu.com"):
+        """通过连接一个网站来确定是否有到指定网站网络；
+        需要网站链接"""
+        print("Connecting to", url + "...")
+        try:
+            _net_checker = urllib.request.urlopen(url)
+        except urllib.request.HTTPError:
+            print("Connect failed")
+        else:
+            print("Connect succeed")
+            self.network = True
+
+    def get_code(self, url="https://www.baidu.com"):
+        """获取一个网站的源码；
+        需要网站链接"""
+        if self.network:
+            _opener = urllib.request.urlopen(url)
+            _code = _opener.readlines()
+            print("These are the code:")
+            print("=====CODE START HERE=====")
+            for cd in _code:
+                print(str(cd, 'utf-8'), end="")
+            print("\n=====CODE END HERE=====")
+        else:
+            check_network(url)
+            if self.network:
+                _opener = urllib.request.urlopen(url)
+                _code = _opener.readlines()
+                print("These are the code:")
+                print("=====CODE START HERE=====")
+                for cd in _code:
+                    print(str(cd, 'utf-8'), end="")
+                print("\n=====CODE END HERE=====")
+
+    def download_as_file(self, url, filename):
+        """将网站上面的所有代码下载至指定的文件；
+        需要指定域名和文件名"""
+        if self.network:
+            print("Downloading page on", url, "to", filename)
+            _opener = urllib.request.urlopen(url)
+            _code = _opener.read().decode()
+            with open(filename, "w") as f:
+                f.write(_code)
+            print("Download succeed")
+        else:
+            check_network(url)
+            if self.network:
+                print("Downloading page on", url, "to", filename)
+                _opener = urllib.request.urlopen(url)
+                _code = _opener.read().decode()
+                with open(filename, "w", newline="") as f:
+                    f.write(_code)
+                print("Download succeed")
