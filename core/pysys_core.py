@@ -35,6 +35,8 @@ PySys的GitHub仓库(https://github.com/bobby233/pysys)或我的个人博客
 
 """
 
+import urllib.request
+
 class FileSys:
     """关于文件和目录的所有操作
 
@@ -232,7 +234,7 @@ class Time:
             else:
                 _dt = date.today()
                 return [ctime().split()[3],
-                        '/'.join(_dt.year, _dt.month, _dt.day)]
+                        '/'.join([str(i) for i in (_dt.year, _dt.month, _dt.day)])]
         else:
             return False
     
@@ -271,7 +273,6 @@ class Time:
         else:
             from json import load
             return load(_db)["timezone"]
-            _db.close()
     
     def get_utc(self) -> str:
         """获取UTC时间，返回ISO格式"""
@@ -298,8 +299,6 @@ class Network:
 
     network = False
 
-    import urllib.request
-
     def check_network(self, url="https://www.baidu.com"):
         """通过连接一个网站来确定是否有到指定网站网络；
         需要网站链接"""
@@ -324,7 +323,7 @@ class Network:
                 print(str(cd, 'utf-8'), end="")
             print("\n=====CODE END HERE=====")
         else:
-            check_network(url)
+            self.check_network(url)
             if self.network:
                 _opener = urllib.request.urlopen(url)
                 _code = _opener.readlines()
@@ -345,7 +344,7 @@ class Network:
                 f.write(_code)
             print("Download succeed")
         else:
-            check_network(url)
+            self.check_network(url)
             if self.network:
                 print("Downloading page on", url, "to", filename)
                 _opener = urllib.request.urlopen(url)
